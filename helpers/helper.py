@@ -162,21 +162,20 @@ async def delete_old_schedule_notify_users(bot, deleted_documents):
 
 
 async def collect_data():
-    async def worker(link_object):
+    async def worker(s, link_object):
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(link_object['file_link']) as response:
-                    last_modified = get_last_file_update(response)
-                    link_object['file_last_modified'] = last_modified
-                    link_object['timestamp'] = datetime.now().timestamp()
-                    return link_object
+            async with s.get(link_object['file_link']) as response:
+                last_modified = get_last_file_update(response)
+                link_object['file_last_modified'] = last_modified
+                link_object['timestamp'] = datetime.now().timestamp()
+                return link_object
         except Exception as e:
             print(f"Error processing {link_object['file_link']}: {e}")
 
     link_objects = get_schedule_data()
-
-    tasks = [asyncio.create_task(worker(link_object)) for link_object in link_objects]
-    results = await asyncio.gather(*tasks)
+    async with aiohttp.ClientSession() as session:
+        tasks = [asyncio.create_task(worker(session, link_object)) for link_object in link_objects]
+        results = await asyncio.gather(*tasks)
     return results
 
 
