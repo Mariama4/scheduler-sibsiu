@@ -82,12 +82,21 @@ async def file_name_chosen(message: Message, state: FSMContext):
         )
     text = stored_text.get_file_params_text(document)
 
+    is_user_subscribed = await mongodb.check_is_user_subscribed(message.from_user.id,
+                                                                document['_id'])
     builder = InlineKeyboardBuilder()
-    kb = builder.add(InlineKeyboardButton(
-        text="Подписаться",
-        callback_data=f"subscribe_{document['_id']}"),
-    ).as_markup()
 
+    if is_user_subscribed:
+        builder.add(InlineKeyboardButton(
+            text="Подписаться",
+            callback_data=f"unsubscribe_{document['_id']}"),
+        )
+    else:
+        builder.add(InlineKeyboardButton(
+            text="Отписаться",
+            callback_data=f"subscribe_{document['_id']}"),
+        )
+    kb = builder.as_markup()
     await message.answer(text=text, reply_markup=kb)
 
 

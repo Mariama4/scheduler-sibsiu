@@ -100,6 +100,15 @@ class MongoDB:
 
         return result.modified_count == 1
 
+    async def check_is_user_subscribed(self, user_id, document_id):
+        collection_filter = {"_id": document_id}
+        document = await self.db.schedule.find_one(collection_filter)
+        if 'subscribers' in document:
+            if user_id in document['subscribers']:
+                return True
+
+        return False
+
     async def unsubscribe_user(self, user_id, document_id):
         collection_filter = {"_id": document_id}
         update = {"$pull": {"subscribers": user_id}}
