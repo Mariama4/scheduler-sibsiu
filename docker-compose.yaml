@@ -1,0 +1,26 @@
+services:
+  tgbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tgbot
+    ports:
+      - '8888:8888'
+    volumes:
+      - .:/main
+    depends_on:
+      - mongodb
+
+  mongodb:
+    container_name: mongodb
+    image: mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - ./mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+
+volumes:
+  mongodb_data:
