@@ -38,7 +38,7 @@
 ## Ссылки
 
 * Сайт СибГИУ: [https://sibsiu.ru/raspisanie/](https://sibsiu.ru/raspisanie/)
-* Telegram-бот: [https://t.me/sibsiu_scheduler_bot](@sibsiu_scheduler_bot)
+* Telegram-бот: [@sibsiu_scheduler_bot](https://t.me/sibsiu_scheduler_bot)
 
 ## Пример использования
 
