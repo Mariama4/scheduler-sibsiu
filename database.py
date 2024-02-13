@@ -24,12 +24,8 @@ class MongoDB:
         self.db = self.client[database]
 
     async def get_all_institutes(self):
-        sort_field = "institute_local_name"
-        sort_direction = 1
-
-        sort_spec = {sort_field: sort_direction}
-        response = await self.db.schedule.distinct('institute_local_name', sort=sort_spec)
-
+        response = await self.db.schedule.distinct('institute_local_name')
+        response.sort()
         return response
 
     async def get_file_names(self, institute_local_name):
