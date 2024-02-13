@@ -90,13 +90,13 @@ async def file_name_chosen(message: Message, state: FSMContext):
 
     if is_user_subscribed:
         builder.add(InlineKeyboardButton(
-            text="Подписаться",
-            callback_data=f"subscribe_{document['_id']}"),
+            text="Отписаться",
+            callback_data=f"unsubscribe_{document['_id']}"),
         )
     else:
         builder.add(InlineKeyboardButton(
-            text="Отписаться",
-            callback_data=f"unsubscribe_{document['_id']}"),
+            text="Подписаться",
+            callback_data=f"subscribe_{document['_id']}"),
         )
     kb = builder.as_markup()
     await message.answer(text=text, reply_markup=kb)
