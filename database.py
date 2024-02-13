@@ -34,7 +34,7 @@ class MongoDB:
         result = []
         async for document in response:
             result.append(document['file_name'])
-
+        result.sort()
         return result
 
     async def get_document_by_institute_local_name_and_file_name(self,
@@ -125,7 +125,7 @@ class MongoDB:
         result = []
         async for document in response:
             result.append(document)
-
+        result.sort()
         return result
 
     def close_connection(self):
