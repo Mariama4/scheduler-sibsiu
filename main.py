@@ -164,7 +164,6 @@ async def unsubscribe_user(callback: CallbackQuery):
 
 async def setup_bot_commands(bot):
     bot_commands = [
-        BotCommand(command="start", description="Запустить бота"),
         BotCommand(command="schedule", description="Получить расписание"),
         BotCommand(command="subscriptions", description="Твои подписки на обновления файлов"),
     ]
