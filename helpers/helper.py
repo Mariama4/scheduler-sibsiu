@@ -1,4 +1,5 @@
 import asyncio
+import time
 from io import BytesIO
 from random import choice
 from string import ascii_uppercase, digits
@@ -77,18 +78,30 @@ def get_last_file_update(response, datetime_format='%a, %d %b %Y %H:%M:%S %Z'):
     return timestamp
 
 
-def get_images_from_url_pdf(url):
-    response = requests.get(url)
-    images = pdf2image.convert_from_bytes(response.content, dpi=300)
-    result = []
+def get_images_from_url_pdf(url, max_retries=10, wait_time=1, backoff_factor=2):
+    retries = 0
+    while retries < max_retries:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            images = pdf2image.convert_from_bytes(response.content, dpi=300)
+            result = []
 
-    for i, v in enumerate(images):
-        buf = BytesIO()
-        v.save(buf, format('PNG'))
-        buf.seek(0)
-        result.append(buf)
+            for i, v in enumerate(images):
+                buf = BytesIO()
+                v.save(buf, format('PNG'))
+                buf.seek(0)
+                result.append(buf)
 
-    return result
+            return result
+        except Exception as e:
+            retries += 1
+            wait_time *= backoff_factor
+            print(
+                f"Error fetching images from {url}. Retrying in {wait_time:.2f} seconds (attempt {retries + 1} of {max_retries})...")
+            time.sleep(wait_time)
+    print(f"Failed to fetch images from {url} after {max_retries} retries.")
+    return []
 
 
 def chunks(lst, n):
@@ -161,16 +174,21 @@ async def delete_old_schedule_notify_users(bot, deleted_documents):
                 )
 
 
-async def worker(session, link_object):
-    try:
-        async with session.get(link_object['file_link']) as response:
-            last_modified = get_last_file_update(response)
-            link_object['file_last_modified'] = last_modified
-            link_object['timestamp'] = datetime.now().timestamp()
-            return link_object
-    except Exception as e:
-        print(f"Error processing {link_object['file_link']}: {e}")
-        return None 
+async def worker(session, link_object, max_retries=10):
+    retries = 0
+    while retries < max_retries:
+        try:
+            async with session.get(link_object['file_link']) as response:
+                last_modified = get_last_file_update(response)
+                link_object['file_last_modified'] = last_modified
+                link_object['timestamp'] = datetime.now().timestamp()
+                return link_object
+        except Exception as e:
+            retries += 1
+            print(f"Error processing {link_object['file_link']}: {e}. Retrying (attempt {retries+1} of {max_retries})")
+            await asyncio.sleep(1 + retries)
+    print(f"Failed to process {link_object['file_link']} after {max_retries} retries.")
+    return None
 
 
 async def collect_data_in_chunks(link_objects, chunk_size=20):
