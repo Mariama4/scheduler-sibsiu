@@ -161,22 +161,36 @@ async def delete_old_schedule_notify_users(bot, deleted_documents):
                 )
 
 
-async def collect_data():
-    async def worker(s, link_object):
-        try:
-            async with s.get(link_object['file_link']) as response:
-                last_modified = get_last_file_update(response)
-                link_object['file_last_modified'] = last_modified
-                link_object['timestamp'] = datetime.now().timestamp()
-                return link_object
-        except Exception as e:
-            print(f"Error processing {link_object['file_link']}: {e}")
+async def worker(session, link_object):
+    try:
+        async with session.get(link_object['file_link']) as response:
+            last_modified = get_last_file_update(response)
+            link_object['file_last_modified'] = last_modified
+            link_object['timestamp'] = datetime.now().timestamp()
+            return link_object
+    except Exception as e:
+        print(f"Error processing {link_object['file_link']}: {e}")
+        return None 
 
-    link_objects = get_schedule_data()
+
+async def collect_data_in_chunks(link_objects, chunk_size=20):
     async with aiohttp.ClientSession() as session:
-        tasks = [asyncio.create_task(worker(session, link_object)) for link_object in link_objects]
-        results = await asyncio.gather(*tasks)
-    return results
+        all_results = []
+        for i in range(0, len(link_objects), chunk_size):
+            chunk = link_objects[i:i + chunk_size]
+
+            tasks = [worker(session, link_object) for link_object in chunk]
+            results = await asyncio.gather(*tasks)
+
+            all_results.extend(results)
+
+        return all_results
+
+
+async def collect_data():
+    link_objects = get_schedule_data()
+    results = await collect_data_in_chunks(link_objects)
+    return results 
 
 
 def make_row_keyboard(items: list[str], placeholder: str) -> ReplyKeyboardMarkup:
