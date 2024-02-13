@@ -48,6 +48,8 @@ class MongoDB:
         requests = []
         updated_documents = []
         for document in documents:
+            if document is None: 
+                continue
             collection_filter = {"file_link": document["file_link"]}
             existing_doc = await self.db.schedule.find_one(collection_filter)
 
