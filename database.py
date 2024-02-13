@@ -24,17 +24,26 @@ class MongoDB:
         self.db = self.client[database]
 
     async def get_all_institutes(self):
-        response = await self.db.schedule.distinct('institute_local_name')
-        response.sort()
+        sort_field = "institute_local_name"
+        sort_direction = 1
+
+        sort_spec = {sort_field: sort_direction}
+        response = await self.db.schedule.distinct('institute_local_name', sort=sort_spec)
+
         return response
 
     async def get_file_names(self, institute_local_name):
+        sort_field = "file_name"
+        sort_direction = 1
+
+        sort_spec = {sort_field: sort_direction}
         response = self.db.schedule.find({"institute_local_name": institute_local_name},
+                                         sort=sort_spec,
                                          projection=["file_name"])
         result = []
         async for document in response:
             result.append(document['file_name'])
-        result.sort()
+
         return result
 
     async def get_document_by_institute_local_name_and_file_name(self,
@@ -129,14 +138,18 @@ class MongoDB:
                 "$in": [user_id]
             }
         }
+        sort_field = "institute_local_name"
+        sort_direction = 1
+
+        sort_spec = {sort_field: sort_direction}
 
         # Выполняем запрос к базе данных
-        response = self.db.schedule.find(collection_filter)
+        response = self.db.schedule.find(collection_filter, sort=sort_spec)
 
         result = []
         async for document in response:
             result.append(document)
-        result.sort()
+
         return result
 
     def close_connection(self):
