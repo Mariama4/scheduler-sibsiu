@@ -52,6 +52,7 @@ class MongoDB:
     async def upsert_schedule(self, documents, time_limit):
         requests = []
         updated_documents = []
+        current_timestamp = datetime.now().timestamp()
         for document in documents:
             if document is None: 
                 continue
@@ -61,11 +62,14 @@ class MongoDB:
             if existing_doc and float(existing_doc["file_last_modified"]) < document["file_last_modified"]:
                 requests.append(
                     UpdateOne(collection_filter,
-                              {"$set": {'file_last_modified': document['file_last_modified']}}, upsert=True)
+                              {"$set": {
+								'file_last_modified': document['file_last_modified'],
+								'timestamp': document['timestamp'],
+							  }}, upsert=True)
                 )
                 updated_documents.append(existing_doc)
             elif (existing_doc and existing_doc['timestamp'] +
-                  time_limit > datetime.now().timestamp()):
+                  time_limit > current_timestamp):
                 requests.append(
                     UpdateOne(collection_filter, {"$set": {'timestamp': document['timestamp']}}, upsert=True)
                 )
@@ -74,7 +78,7 @@ class MongoDB:
                     InsertOne(document)
                 )
 
-        if len(requests) < 1:
+        if len(requests) == 0:
             return []
 
         await self.db.schedule.bulk_write(requests)
