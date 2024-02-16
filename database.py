@@ -67,7 +67,7 @@ class MongoDB:
 								'timestamp': document['timestamp'],
 							  }}, upsert=True)
                 )
-                updated_documents.append(existing_doc)
+                updated_documents.append(document)
             elif (existing_doc and existing_doc['timestamp'] +
                   time_limit > current_timestamp):
                 requests.append(
