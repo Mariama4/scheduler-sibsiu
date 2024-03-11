@@ -76,7 +76,7 @@ async def file_name_chosen(message: Message, state: FSMContext):
 
     await message.answer(text='Пожалуйста, подождите, файлы отправляются...')
 
-    media_groups = helper.get_media_groups_from_url(document['file_link'])
+    media_groups = helper.get_media_groups_from_filepaths(document['images_filepath'])
 
     for mg in media_groups:
         await message.answer_media_group(

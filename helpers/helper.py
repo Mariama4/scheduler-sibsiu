@@ -1,14 +1,12 @@
 import asyncio
+import os
 import time
 from io import BytesIO
-from random import choice
-from string import ascii_uppercase, digits
 import pdf2image
 import requests
 import aiohttp
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, FSInputFile
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
-from aiogram.types import BufferedInputFile
 from aiogram.utils.media_group import MediaGroupBuilder
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
@@ -17,7 +15,6 @@ import pytz
 from config import EXPIRATION_TIME_LIMIT_SECONDS
 from helpers import stored_text
 from loader import mongodb
-from urllib import parse
 
 
 def get_schedule_data():
@@ -104,22 +101,32 @@ def get_images_from_url_pdf(url, max_retries=10, wait_time=1, backoff_factor=2):
     return []
 
 
+async def get_filepath_images_from_pdf(response):
+    data = await response.content.read()
+    images = pdf2image.convert_from_bytes(data, dpi=300)
+    result = []
+
+    for i, v in enumerate(images):
+        abs_filepath = os.path.abspath(f'temp/{response.url_obj.parts[3]}-{response.url_obj.name}-{i}.png')
+        v.save(abs_filepath, 'PNG')
+        result.append(abs_filepath)
+
+    return result
+
+
 def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
 
-def get_media_groups_from_url(url):
-    images = get_images_from_url_pdf(url)
+def get_media_groups_from_filepaths(images):
     result = []
     for images_chunk in chunks(images, 10):
         album_builder = MediaGroupBuilder()
         for image in images_chunk:
-            random_filename = ''.join(choice(ascii_uppercase + digits) for _ in range(7))
             album_builder.add_photo(
-                media=BufferedInputFile(
-                    image.read(),
-                    filename=f"{random_filename}.jpg"
+                media=FSInputFile(
+                    image
                 )
             )
         result.append(album_builder)
@@ -144,7 +151,7 @@ async def update_schedule_and_notify_users(bot):
 async def notify_users_about_update(bot, updated_documents):
     for document in updated_documents:
         if 'subscribers' in document:
-            media_groups = get_media_groups_from_url(document['file_link'])
+            media_groups = get_media_groups_from_filepaths(document['images_filepath'])
             text = f'Расписание обновилось!\n{stored_text.get_file_params_text(document)}'
             builder = InlineKeyboardBuilder()
             kb = builder.add(InlineKeyboardButton(
@@ -181,6 +188,7 @@ async def worker(session, link_object, max_retries=10):
             async with session.get(link_object['file_link']) as response:
                 last_modified = get_last_file_update(response)
                 link_object['file_last_modified'] = last_modified
+                link_object['images_filepath'] = await get_filepath_images_from_pdf(response)
                 link_object['timestamp'] = datetime.now().timestamp()
                 return link_object
         except Exception as e:
@@ -191,7 +199,7 @@ async def worker(session, link_object, max_retries=10):
     return None
 
 
-async def collect_data_in_chunks(link_objects, chunk_size=20):
+async def collect_data_in_chunks(link_objects, chunk_size=10):
     async with aiohttp.ClientSession() as session:
         all_results = []
         for i in range(0, len(link_objects), chunk_size):
@@ -206,9 +214,13 @@ async def collect_data_in_chunks(link_objects, chunk_size=20):
 
 
 async def collect_data():
+    PATH = os.path.abspath(f'temp')
+    if not os.path.exists(PATH):
+        os.makedirs(PATH)
+
     link_objects = get_schedule_data()
     results = await collect_data_in_chunks(link_objects)
-    return results 
+    return results
 
 
 def make_row_keyboard(items: list[str], placeholder: str) -> ReplyKeyboardMarkup:
