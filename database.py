@@ -20,7 +20,10 @@ def singleton(cls):
 @singleton
 class MongoDB:
     def __init__(self, username, password, host, port, database):
-        self.client = AsyncIOMotorClient(f"mongodb://{username}:{password}@{host}:{port}")
+        mongodb_string = f"mongodb://{host}:{port}"
+        if username == '':
+            mongodb_string = f"mongodb://{username}:{password}@{host}:{port}"
+        self.client = AsyncIOMotorClient(mongodb_string)
         self.db = self.client[database]
 
     async def get_all_institutes(self):
