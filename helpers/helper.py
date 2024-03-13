@@ -185,29 +185,39 @@ async def worker(session, link_object, max_retries=10):
     return None
 
 
-async def collect_data_in_chunks(link_objects, chunk_size=10):
-    start = datetime.now()
-    async with aiohttp.ClientSession() as session:
-        all_results = []
-        tasks = []
+async def collect_data_in_chunks(link_objects, chunk_size=10, max_retries=10):
+    retries = 0
+    while retries < max_retries:
+        try:
+            start = datetime.now()
+            async with aiohttp.ClientSession() as session:
+                all_results = []
+                tasks = []
 
-        for i in range(0, len(link_objects), chunk_size):
-            chunk = link_objects[i:i + chunk_size]
-            for link_object in chunk:
-                task = asyncio.create_task(worker(session, link_object))
-                tasks.append(task)
+                for i in range(0, len(link_objects), chunk_size):
+                    chunk = link_objects[i:i + chunk_size]
+                    for link_object in chunk:
+                        task = asyncio.create_task(worker(session, link_object))
+                        tasks.append(task)
 
-        for task in asyncio.as_completed(tasks):
-            try:
-                result = await task
-                if result:
-                    all_results.append(result)
-            except Exception as e:
-                print(f"An error occurred: {e}")
-        end = datetime.now()
-        elapsed = (end - start).total_seconds()
-        print(f'\nSuccessfully processed in {elapsed} seconds.')
-        return all_results
+                for task in asyncio.as_completed(tasks):
+                    try:
+                        result = await task
+                        if result:
+                            all_results.append(result)
+                    except Exception as e:
+                        print(f"An error occurred: {e}")
+                end = datetime.now()
+                elapsed = (end - start).total_seconds()
+                print(f'\nSuccessfully processed in {elapsed} seconds.')
+                return all_results
+        except Exception as e:
+            retries += 1
+            print(
+                f"Error processing: {e}. Retrying (attempt {retries + 1} of {max_retries})")
+            await asyncio.sleep(1 + retries)
+        print(f"Failed to process after {max_retries} retries.")
+        return []
 
 
 async def collect_data():
