@@ -1,10 +1,10 @@
 import asyncio
 import os
 import time
-from io import BytesIO
 import pdf2image
 import requests
 import aiohttp
+from PIL import Image
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, FSInputFile
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.utils.media_group import MediaGroupBuilder
@@ -75,40 +75,25 @@ def get_last_file_update(response, datetime_format='%a, %d %b %Y %H:%M:%S %Z'):
     return timestamp
 
 
-def get_images_from_url_pdf(url, max_retries=10, wait_time=1, backoff_factor=2):
-    retries = 0
-    while retries < max_retries:
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            images = pdf2image.convert_from_bytes(response.content, dpi=300)
-            result = []
-
-            for i, v in enumerate(images):
-                buf = BytesIO()
-                v.save(buf, format('PNG'))
-                buf.seek(0)
-                result.append(buf)
-
-            return result
-        except Exception as e:
-            retries += 1
-            wait_time *= backoff_factor
-            print(
-                f"Error fetching images from {url}. Retrying in {wait_time:.2f} seconds (attempt {retries + 1} of {max_retries})...")
-            time.sleep(wait_time)
-    print(f"Failed to fetch images from {url} after {max_retries} retries.")
-    return []
+def compress_and_save_img(pil_image, file_name, new_size_ratio=0.3, quality=65):
+    pil_image = pil_image.resize(
+        (int(pil_image.size[0] * new_size_ratio), int(pil_image.size[1] * new_size_ratio)), Image.Resampling.LANCZOS
+    )
+    try:
+        pil_image.save(file_name, 'JPEG', quality=quality, optimize=True)
+    except OSError:
+        pil_image = pil_image.convert("RGB")
+        pil_image.save(file_name, 'JPEG', quality=quality, optimize=True)
 
 
 async def get_filepath_images_from_pdf(response):
     data = await response.content.read()
-    images = pdf2image.convert_from_bytes(data, dpi=300)
+    images = pdf2image.convert_from_bytes(data, dpi=250, thread_count=3, jpegopt={'quality': 65, 'optimize': True})
     result = []
 
     for i, v in enumerate(images):
-        abs_filepath = os.path.abspath(f'temp/{response.url_obj.parts[3]}-{response.url_obj.name}-{i}.png')
-        v.save(abs_filepath, 'PNG')
+        abs_filepath = os.path.abspath(f'temp/{response.url_obj.parts[3]}-{response.url_obj.name}-{i}.jpg')
+        compress_and_save_img(v, abs_filepath)
         result.append(abs_filepath)
 
     return result
@@ -193,23 +178,35 @@ async def worker(session, link_object, max_retries=10):
                 return link_object
         except Exception as e:
             retries += 1
-            print(f"Error processing {link_object['file_link']}: {e}. Retrying (attempt {retries+1} of {max_retries})")
+            print(
+                f"Error processing {link_object['file_link']}: {e}. Retrying (attempt {retries + 1} of {max_retries})")
             await asyncio.sleep(1 + retries)
     print(f"Failed to process {link_object['file_link']} after {max_retries} retries.")
     return None
 
 
 async def collect_data_in_chunks(link_objects, chunk_size=10):
+    start = datetime.now()
     async with aiohttp.ClientSession() as session:
         all_results = []
+        tasks = []
+
         for i in range(0, len(link_objects), chunk_size):
             chunk = link_objects[i:i + chunk_size]
+            for link_object in chunk:
+                task = asyncio.create_task(worker(session, link_object))
+                tasks.append(task)
 
-            tasks = [worker(session, link_object) for link_object in chunk]
-            results = await asyncio.gather(*tasks)
-
-            all_results.extend(results)
-
+        for task in asyncio.as_completed(tasks):
+            try:
+                result = await task
+                if result:
+                    all_results.append(result)
+            except Exception as e:
+                print(f"An error occurred: {e}")
+        end = datetime.now()
+        elapsed = (end - start).total_seconds()
+        print(f'\nSuccessfully processed in {elapsed} seconds.')
         return all_results
 
 
