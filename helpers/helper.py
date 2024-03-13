@@ -185,7 +185,7 @@ async def worker(session, link_object, max_retries=10):
     return None
 
 
-async def collect_data_in_chunks(link_objects, chunk_size=10, max_retries=10):
+async def collect_data_in_chunks(link_objects, chunk_size=5, max_retries=10):
     retries = 0
     while retries < max_retries:
         try:
