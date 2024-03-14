@@ -191,31 +191,32 @@ async def collect_data_in_chunks(link_objects, chunk_size=10, max_retries=10):
         try:
             start = datetime.now()
             async with aiohttp.ClientSession() as session:
-                all_results = []
-
-                for i in range(0, len(link_objects), chunk_size):
-                    chunk = link_objects[i:i + chunk_size]
-                    tasks = [worker(session, link_object) for link_object in chunk]
-                    results = await asyncio.gather(*tasks)
-
-                    all_results.extend(results)
-
                 # all_results = []
-                # tasks = []
                 #
                 # for i in range(0, len(link_objects), chunk_size):
                 #     chunk = link_objects[i:i + chunk_size]
-                #     for link_object in chunk:
-                #         task = asyncio.create_task(worker(session, link_object))
-                #         tasks.append(task)
+                #     tasks = [worker(session, link_object) for link_object in chunk]
+                #     results = await asyncio.gather(*tasks)
                 #
-                # for task in asyncio.as_completed(tasks):
-                #     try:
-                #         result = await task
-                #         if result:
-                #             all_results.append(result)
-                #     except Exception as e:
-                #         print(f"An error occurred: {e}")
+                #     all_results.extend(results)
+
+                all_results = []
+                tasks = []
+
+                for i in range(0, len(link_objects), chunk_size):
+                    chunk = link_objects[i:i + chunk_size]
+                    for link_object in chunk:
+                        task = asyncio.create_task(worker(session, link_object))
+                        tasks.append(task)
+
+                for task in asyncio.as_completed(tasks):
+                    try:
+                        result = await task
+                        if result:
+                            all_results.append(result)
+                    except Exception as e:
+                        print(f"An error occurred: {e}")
+
                 end = datetime.now()
                 elapsed = (end - start).total_seconds()
                 print(f'\nSuccessfully processed in {elapsed} seconds.')
