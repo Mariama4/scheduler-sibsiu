@@ -166,7 +166,7 @@ async def delete_old_schedule_notify_users(bot, deleted_documents):
                 )
 
 
-async def worker(session, link_object, max_retries=10):
+async def fetch(session, link_object, max_retries=10):
     retries = 0
     while retries < max_retries:
         try:
@@ -206,10 +206,11 @@ async def collect_data_in_chunks(link_objects, chunk_size=10, max_retries=10):
                 for i in range(0, len(link_objects), chunk_size):
                     chunk = link_objects[i:i + chunk_size]
                     for link_object in chunk:
-                        task = asyncio.create_task(worker(session, link_object))
+                        task = asyncio.create_task(fetch(session, link_object))
                         tasks.append(task)
 
                 for task in asyncio.as_completed(tasks):
+                    print(task)
                     try:
                         result = await task
                         if result:
