@@ -21,13 +21,13 @@ def singleton(cls):
 class MongoDB:
     def __init__(self, username, password, host, port, database):
         mongodb_string = f"mongodb://{host}:{port}"
-        if username == '':
+        if username == "":
             mongodb_string = f"mongodb://{username}:{password}@{host}:{port}"
         self.client = AsyncIOMotorClient(mongodb_string)
         self.db = self.client[database]
 
     async def get_all_institutes(self):
-        response = await self.db.schedule.distinct('institute_local_name')
+        response = await self.db.schedule.distinct("institute_local_name")
         response.sort()
         return response
 
@@ -36,20 +36,23 @@ class MongoDB:
         sort_direction = 1
 
         sort_spec = {sort_field: sort_direction}
-        response = self.db.schedule.find({"institute_local_name": institute_local_name},
-                                         sort=sort_spec,
-                                         projection=["file_name"])
+        response = self.db.schedule.find(
+            {"institute_local_name": institute_local_name},
+            sort=sort_spec,
+            projection=["file_name"],
+        )
         result = []
         async for document in response:
-            result.append(document['file_name'])
+            result.append(document["file_name"])
 
         return result
 
-    async def get_document_by_institute_local_name_and_file_name(self,
-                                                                 institute_local_name,
-                                                                 file_name):
-        response = await self.db.schedule.find_one({"institute_local_name": institute_local_name,
-                                                    "file_name": file_name})
+    async def get_document_by_institute_local_name_and_file_name(
+        self, institute_local_name, file_name
+    ):
+        response = await self.db.schedule.find_one(
+            {"institute_local_name": institute_local_name, "file_name": file_name}
+        )
         return response
 
     async def upsert_schedule(self, documents, time_limit):
@@ -57,29 +60,42 @@ class MongoDB:
         updated_documents = []
         current_timestamp = datetime.now().timestamp()
         for document in documents:
-            if document is None: 
+            if document is None:
                 continue
             collection_filter = {"file_link": document["file_link"]}
             existing_doc = await self.db.schedule.find_one(collection_filter)
 
-            if existing_doc and float(existing_doc["file_last_modified"]) < document["file_last_modified"]:
+            if (
+                existing_doc
+                and float(existing_doc["file_last_modified"])
+                < document["file_last_modified"]
+            ):
                 requests.append(
-                    UpdateOne(collection_filter,
-                              {"$set": {
-								'file_last_modified': document['file_last_modified'],
-								'timestamp': document['timestamp'],
-							  }}, upsert=True)
+                    UpdateOne(
+                        collection_filter,
+                        {
+                            "$set": {
+                                "file_last_modified": document["file_last_modified"],
+                                "timestamp": document["timestamp"],
+                            }
+                        },
+                        upsert=True,
+                    )
                 )
                 updated_documents.append(document)
-            elif (existing_doc and existing_doc['timestamp'] +
-                  time_limit > current_timestamp):
+            elif (
+                existing_doc
+                and existing_doc["timestamp"] + time_limit > current_timestamp
+            ):
                 requests.append(
-                    UpdateOne(collection_filter, {"$set": {'timestamp': document['timestamp']}}, upsert=True)
+                    UpdateOne(
+                        collection_filter,
+                        {"$set": {"timestamp": document["timestamp"]}},
+                        upsert=True,
+                    )
                 )
             elif not existing_doc:
-                requests.append(
-                    InsertOne(document)
-                )
+                requests.append(InsertOne(document))
 
         if len(requests) == 0:
             return []
@@ -91,11 +107,7 @@ class MongoDB:
         now = datetime.now()
         threshold = (now - timedelta(seconds=time_limit)).timestamp()
 
-        collection_filter = {
-            "timestamp": {
-                "$lt": threshold
-            }
-        }
+        collection_filter = {"timestamp": {"$lt": threshold}}
 
         response = self.db.schedule.find(collection_filter)
         deleted_documents = []
@@ -117,8 +129,8 @@ class MongoDB:
     async def check_is_user_subscribed(self, user_id, document_id):
         collection_filter = {"_id": document_id}
         document = await self.db.schedule.find_one(collection_filter)
-        if 'subscribers' in document:
-            if user_id in document['subscribers']:
+        if "subscribers" in document:
+            if user_id in document["subscribers"]:
                 return True
 
         return False
@@ -136,11 +148,7 @@ class MongoDB:
         return response
 
     async def get_documents_by_user_id(self, user_id):
-        collection_filter = {
-            "subscribers": {
-                "$in": [user_id]
-            }
-        }
+        collection_filter = {"subscribers": {"$in": [user_id]}}
         sort_field = "institute_local_name"
         sort_direction = 1
 
