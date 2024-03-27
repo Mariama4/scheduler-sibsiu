@@ -170,7 +170,10 @@ async def setup_bot_commands(bot):
 
 
 async def main() -> None:
-    bot = Bot(token=configuration["BOT_TOKEN"], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(
+        token=configuration["BOT_TOKEN"],
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     await setup_bot_commands(bot)
     try:
         jobs.init_jobs(bot)
