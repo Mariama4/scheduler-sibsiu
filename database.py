@@ -21,7 +21,7 @@ def singleton(cls):
 class MongoDB:
     def __init__(self, username, password, host, port, database):
         mongodb_string = f"mongodb://{host}:{port}"
-        if username == "":
+        if username != "":
             mongodb_string = f"mongodb://{username}:{password}@{host}:{port}"
         self.client = AsyncIOMotorClient(mongodb_string)
         self.db = self.client[database]
