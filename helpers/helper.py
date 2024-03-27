@@ -202,9 +202,7 @@ async def collect_data_in_chunks(link_objects, chunk_size=10, max_retries=10):
     while retries < max_retries:
         try:
             start = datetime.now()
-            resolver = aiohttp.resolver.AsyncResolver(nameservers=["77.88.8.8"])
-            conn = aiohttp.TCPConnector(resolver=resolver)
-            async with aiohttp.ClientSession(connector=conn) as session:
+            async with aiohttp.ClientSession() as session:
                 all_results = []
                 tasks = []
 
