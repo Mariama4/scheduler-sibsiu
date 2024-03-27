@@ -12,4 +12,4 @@ def get_file_params_text(document):
     return f"""{hbold('Институт')}: {document['institute_local_name']}
 {hbold('Имя файла')}: {hlink(document['file_name'], document['file_link'])}
 {hbold('Дата обновления на сайте')}: {helper.timestamp_to_local_time(document['file_last_modified'])}
-{hbold('Дата обновления в базе')}: {helper.timestamp_to_local_time(document['timestamp'])}"""
+{hbold('Дата обновления в боте')}: {helper.timestamp_to_local_time(document['timestamp'])}"""
